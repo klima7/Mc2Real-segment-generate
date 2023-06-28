@@ -105,4 +105,6 @@ class UnetModel(keras.Model):
             method=image.ResizeMethod.NEAREST_NEIGHBOR,
         )
         
+        labels = tf.cast(labels, tf.uint8)
+        
         return labels
