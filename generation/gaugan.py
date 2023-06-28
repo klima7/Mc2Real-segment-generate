@@ -139,7 +139,7 @@ class GaussianSampler(Layer):
         return {"latent_dim": self.latent_dim}
 
 
-class Predictor():
+class GauganPredictor():
     def __init__(self, model_g_path: str, model_e_path: str = None) -> None:
         custom_objects = {
             'ResBlock': ResBlock,
