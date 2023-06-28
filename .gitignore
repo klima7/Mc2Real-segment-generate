@@ -1,0 +1,4 @@
+**/__pycache__/**
+conda/**
+data/**
+**/trained_models/**
