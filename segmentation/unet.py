@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow import image
 import keras
 from keras import layers
 
@@ -49,14 +50,15 @@ class UpsampleLayer(layers.Layer):
     
 class UnetModel(keras.Model):
     
+    INPUT_SIZE = 128
+    
     def __init__(self, name='unet', **kwargs):
         super().__init__(name=name, **kwargs)
         
-        self.down1 = DownsampleLayer(32)
-        self.down2 = DownsampleLayer(64)
-        self.down3 = DownsampleLayer(128)
-        self.down4 = DownsampleLayer(256)
-        self.down5 = DownsampleLayer(512)
+        self.down1 = DownsampleLayer(64)
+        self.down2 = DownsampleLayer(128)
+        self.down3 = DownsampleLayer(256)
+        self.down4 = DownsampleLayer(512)
         
         self.middle_conv = DoubleConvLayer(1024)
         
@@ -64,11 +66,10 @@ class UnetModel(keras.Model):
         self.up2 = UpsampleLayer(256)
         self.up3 = UpsampleLayer(128)
         self.up4 = UpsampleLayer(64)
-        self.up5 = UpsampleLayer(32)
         
         self.last_conv = layers.Conv2D(11, 1, padding="same", activation = "softmax")
         
-        self.build(input_shape=(None, 128, 128, 3))
+        self.build(input_shape=(None, self.INPUT_SIZE, self.INPUT_SIZE, 3))
         
     def call(self, inputs):
         f1, p1 = self.down1(inputs)
@@ -85,3 +86,23 @@ class UnetModel(keras.Model):
         
         outputs = self.last_conv(u4)
         return outputs
+
+    def segment(self, inputs):
+        _, height, width, _ = inputs.shape
+        
+        inputs = image.resize(
+            inputs,
+            (self.INPUT_SIZE, self.INPUT_SIZE),
+            method=image.ResizeMethod.NEAREST_NEIGHBOR,
+        )
+        
+        preds = self.call(inputs)
+        labels = tf.argmax(preds, axis=-1)[..., tf.newaxis]
+        
+        labels = image.resize(
+            labels,
+            (height, width),
+            method=image.ResizeMethod.NEAREST_NEIGHBOR,
+        )
+        
+        return labels
