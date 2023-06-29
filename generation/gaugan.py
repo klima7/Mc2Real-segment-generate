@@ -140,6 +140,14 @@ class GaussianSampler(Layer):
 
 
 class GauganPredictor():
+    
+    CLASSES = (
+        'unknown','wall', 'sky', 'tree', 'road', 'grass', 'earth',
+        'mountain', 'plant', 'water', 'sea', 'field', 'fence', 'rock',
+        'sand', 'path', 'river', 'flower', 'hill', 'palm', 'tower',
+        'dirt', 'land', 'waterfall', 'lake'
+    )
+    
     def __init__(self, model_g_path: str, model_e_path: str = None) -> None:
         custom_objects = {
             'ResBlock': ResBlock,
