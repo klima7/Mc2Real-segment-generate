@@ -2,5 +2,6 @@
 conda/**
 data/**
 dataset/**
+dataset_mc_real/**
 sample_images/**
 **/trained_models/**
