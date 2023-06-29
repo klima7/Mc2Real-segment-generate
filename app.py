@@ -49,10 +49,23 @@ with st.expander('Input Minecraft image', expanded=True):
     
     if st.button('Random'):
         mc_image = get_random_image()
+        
+    show_mask = st.checkbox('Show segmentation mask')
 
-st.image(mc_image)
+col_mc, col_real = st.columns(2)
 
-model = get_model()
-mc_image_pre = preprocess_image(mc_image)
-real_image = model(mc_image_pre)
-st.image(real_image)
+with col_mc:
+    st.image(mc_image)
+
+with col_real:
+    model = get_model()
+    mc_image_pre = preprocess_image(mc_image)
+    real_image = model(mc_image_pre)
+    st.image(real_image)
+
+with st.expander('Segmentation masks'):
+    masks = model.get_last_masks()
+    cols = st.columns(len(masks))
+    for col, mask in zip(cols, masks):
+        with col:
+            st.image(mask)

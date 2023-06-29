@@ -1,10 +1,9 @@
-from typing import Any
 import numpy as np
 from keras import utils
 
 from generation.gaugan import GauganPredictor
 from segmentation.unet import UnetModel
-from segmentation.mapping import mapping
+from segmentation.mapping import mapping, create_readable_mask
 
 
 class Mc2RealConverter:
@@ -27,6 +26,10 @@ class Mc2RealConverter:
         self.generator = self.__create_generator()
         self.segmentator = self.__create_segmentator()
         self.classes_mapping_array = self.__create_classes_mapping_array()
+        self.generator_colors = self.__generate_colors(len(GauganPredictor.CLASSES))
+        
+        self.segmentator_mask = None
+        self.raw_generator_mask = None
         
     def __create_generator(self):
         generator = GauganPredictor(
@@ -51,11 +54,28 @@ class Mc2RealConverter:
             out_num = in_classes.index(out_name)
             mapping_array.append(out_num)
         return np.array(mapping_array)
-
     
-    def __call__(self, mc_image) -> Any:
+    @staticmethod
+    def __generate_colors(num_of_colors, seed=0):
+        colors = np.random.Generator(np.random.PCG64(seed)).integers(32, 255, size=(num_of_colors, 3))
+        return colors.astype(np.uint8)
+
+    def __call__(self, mc_image):
         labels = self.segmentator.segment(mc_image[None, ...])
+        self.segmentator_mask = np.array(labels)
         labels = self.classes_mapping_array[labels]
+        self.raw_generator_mask = np.array(labels)
         labels = utils.to_categorical(labels, 25)
         generated = self.generator(labels)[0]
         return generated
+
+    def get_last_masks(self):
+        segmentator_mask = create_readable_mask(self.segmentator_mask[0, ..., 0]) \
+            if self.segmentator_mask is not None else None
+        raw_generator_mask = self.__create_readable_generator_mask(self.raw_generator_mask[0, ..., 0]) \
+            if self.raw_generator_mask is not None else None
+        return [segmentator_mask, raw_generator_mask]
+
+    def __create_readable_generator_mask(self, mask):
+        readable_mask = self.generator_colors[mask]
+        return readable_mask
