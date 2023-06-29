@@ -1,0 +1,10 @@
+tensorflow
+tensorflow_addons
+keras
+numpy
+scipy
+tqdm
+scikit-image
+opencv-python
+matplotlib
+streamlit
