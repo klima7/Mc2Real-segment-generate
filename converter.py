@@ -1,5 +1,7 @@
+import cv2
 import numpy as np
 from keras import utils
+from scipy.ndimage import maximum_filter
 
 from generation.gaugan import GauganPredictor
 from segmentation.unet import UnetModel
@@ -30,6 +32,7 @@ class Mc2RealConverter:
         
         self.segmentator_mask = None
         self.raw_generator_mask = None
+        self.filtered_generator_mask = None
         
     def __create_generator(self):
         generator = GauganPredictor(
@@ -65,6 +68,9 @@ class Mc2RealConverter:
         self.segmentator_mask = np.array(labels)
         labels = self.classes_mapping_array[labels]
         self.raw_generator_mask = np.array(labels)
+        labels = labels[...]
+        labels = self.__filter_labels_with_median_blur(labels)
+        self.filtered_generator_mask = np.array(labels)
         labels = utils.to_categorical(labels, 25)
         generated = self.generator(labels)[0]
         return generated
@@ -74,8 +80,19 @@ class Mc2RealConverter:
             if self.segmentator_mask is not None else None
         raw_generator_mask = self.__create_readable_generator_mask(self.raw_generator_mask[0, ..., 0]) \
             if self.raw_generator_mask is not None else None
-        return [segmentator_mask, raw_generator_mask]
+        filtered_generator_mask = self.__create_readable_generator_mask(self.filtered_generator_mask[0, ..., 0]) \
+            if self.filtered_generator_mask is not None else None
+        return [segmentator_mask, raw_generator_mask, filtered_generator_mask]
 
     def __create_readable_generator_mask(self, mask):
         readable_mask = self.generator_colors[mask]
         return readable_mask
+
+    def __filter_labels_with_median_blur(self, labels):
+        fmaps = cv2.medianBlur(labels[0].astype(np.uint8), 27)[..., np.newaxis]
+        unique, counts = np.unique(fmaps, return_counts=True)
+        for u, c in zip(unique, counts):
+            if c < 1000:
+                fmaps[fmaps == u] = 0
+        fmaps = maximum_filter(fmaps, 5)
+        return fmaps[np.newaxis, ...]

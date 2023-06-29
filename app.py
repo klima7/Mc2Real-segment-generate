@@ -50,8 +50,6 @@ with st.expander('Input Minecraft image', expanded=True):
     if st.button('Random'):
         mc_image = get_random_image()
         
-    show_mask = st.checkbox('Show segmentation mask')
-
 col_mc, col_real = st.columns(2)
 
 with col_mc:
