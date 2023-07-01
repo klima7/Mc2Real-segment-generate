@@ -39,31 +39,61 @@ def get_random_image():
     return image
 
 
+# global state
+if 'mc_image' not in st.session_state:
+    st.session_state.mc_image = get_random_image()
+
+
+# sidebar
+st.sidebar.title('Options')
+opt_noise = st.sidebar.checkbox('Optimize noise', value=True)
+opt_steps = st.sidebar.number_input('Optimization steps', value=100, min_value=0, max_value=1_000, step=100, format='%d', disabled=not opt_noise)
+opt_steps = opt_steps if opt_noise else 0
+use_seed = st.sidebar.checkbox('Use seed', value=False)
+seed = st.sidebar.number_input('Seed', value=0, min_value=0, step=1, format='%d', disabled=not use_seed)
+seed = seed if use_seed else None
+
+# main content
 st.title('Minecraft to real converter')
 
 with st.expander('Input Minecraft image', expanded=True):
 
     mc_file = st.file_uploader('Upload')
 
-    mc_image = get_uploaded_image(mc_file) if mc_file else get_random_image()
+    if mc_file:
+        st.session_state.mc_image = get_uploaded_image(mc_file)
     
     if st.button('Random'):
-        mc_image = get_random_image()
+        st.session_state.mc_image = get_random_image()
+
+convert = st.button('Convert', use_container_width=True)
+
+if opt_noise:
+    progress = st.progress(0)
+
+def progress_callback(progress_percent):
+    progress.progress(progress_percent, text='Optimizing noise')
         
 col_mc, col_real = st.columns(2)
 
+model = get_model()
+real_image = None
+
 with col_mc:
-    st.image(mc_image)
+    st.image(st.session_state.mc_image, use_column_width='always')
 
 with col_real:
-    model = get_model()
-    mc_image_pre = preprocess_image(mc_image)
-    real_image = model(mc_image_pre)
-    st.image(real_image)
+    if convert:
+        mc_image_pre = preprocess_image(st.session_state.mc_image)
+        with st.spinner('converting'):
+            real_image = model(mc_image_pre, opt_steps=opt_steps, seed=seed, progress_callback=progress_callback if opt_noise else None)
+        st.image(real_image, use_column_width='always')
 
-with st.expander('Segmentation masks'):
-    masks = model.get_last_masks()
-    cols = st.columns(len(masks))
-    for col, mask in zip(cols, masks):
-        with col:
-            st.image(mask)
+if model.last_segmentator_mask is not None:
+    with st.expander('Details'):
+        st.image(model.last_segmentator_mask, caption='Segmentator mask')
+        st.image(model.last_raw_generator_mask, caption='Raw generator mask')
+        st.image(model.last_filtered_generator_mask, caption='Filtered generator mask')
+        st.image(model.last_img_without_opt, caption='Image without optimization')
+        if model.last_img_with_opt is not None:
+            st.image(model.last_img_with_opt, caption='Image with optimization')

@@ -159,10 +159,11 @@ class GauganPredictor():
         self.gen: Model = keras.models.load_model(
             model_g_path, custom_objects=custom_objects)
 
-    def __call__(self, im: np.ndarray) -> np.ndarray:
+    def __call__(self, im: np.ndarray, z=None) -> np.ndarray:
         if len(im.shape) == 3:
             im = im[np.newaxis]
-        z = tf.random.normal((im.shape[0], 256))
+        if z is None:
+            z = tf.random.normal((im.shape[0], 256))
         tmp = self.gen.predict_on_batch([z, im])
         x = np.array((tmp + 1) * 127.5, np.uint8)
         return x
