@@ -1,3 +1,5 @@
+import random
+from glob import glob
 import cv2
 import numpy as np
 from keras import utils
@@ -133,7 +135,7 @@ class Mc2RealConverter:
             with tf.GradientTape() as tape:
                 prediction = self.generator.gen([noise, labels])
                 l1_loss = tf.math.reduce_sum(tf.math.abs(prediction - mc_image))
-                vgg_loss = self.__vgg_loss(prediction, mc_image)
+                vgg_loss = self.__vgg_loss(prediction, self.__get_random_real_image())
                 loss_value = loss_ratio * l1_loss + (1-loss_ratio) * vgg_loss
                 
             gradients = tape.gradient(loss_value, [noise])
@@ -145,6 +147,12 @@ class Mc2RealConverter:
                 progress_callback((step+1) / opt_steps)
             
         return noise.numpy()
+    
+    def __get_random_real_image(self):
+        paths = list(glob('dataset_real/*.png'))
+        path = random.choice(paths)
+        image = cv2.imread(str(path))[None, ..., ::-1]
+        return image
     
     @staticmethod
     def __vgg_loss(y_true, y_pred):
