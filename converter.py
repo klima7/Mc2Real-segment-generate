@@ -2,8 +2,10 @@ import cv2
 import numpy as np
 from keras import utils
 from scipy.ndimage import maximum_filter
-import tensorflow as tf
 from tqdm import tqdm
+import tensorflow as tf
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.losses import MeanSquaredError
 
 from generation.gaugan import GauganPredictor
 from segmentation.unet import UnetModel
@@ -107,7 +109,8 @@ class Mc2RealConverter:
         self._img_with_opt = generated if opt_steps > 0 else None
         return generated
     
-    def get_optimized_noise(self, labels, mc_image, opt_steps=100, seed=None, progress_callback=None):
+    def get_optimized_noise(self, labels, mc_image, opt_steps=100, seed=None,
+                            loss_ratio=0.5, progress_callback=None):
         if seed is not None:
             tf.random.set_seed(seed)
 
@@ -123,13 +126,15 @@ class Mc2RealConverter:
         mc_image = mc_image*2-1
         mc_image = mc_image[np.newaxis, ...]
         
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=0.015)
         
         iterator = tqdm(range(opt_steps))
         for step in iterator:
             with tf.GradientTape() as tape:
                 prediction = self.generator.gen([noise, labels])
-                loss_value = tf.math.reduce_sum((prediction - mc_image)**2)
+                l1_loss = tf.math.reduce_sum(tf.math.abs(prediction - mc_image))
+                vgg_loss = self.__vgg_loss(prediction, mc_image)
+                loss_value = loss_ratio * l1_loss + (1-loss_ratio) * vgg_loss
                 
             gradients = tape.gradient(loss_value, [noise])
             optimizer.apply_gradients(zip(gradients, [noise]))
@@ -140,6 +145,16 @@ class Mc2RealConverter:
                 progress_callback((step+1) / opt_steps)
             
         return noise.numpy()
+    
+    @staticmethod
+    def __vgg_loss(y_true, y_pred):
+        vgg = VGG16(include_top=False, weights='imagenet')
+        vgg.trainable = False
+        loss_model = tf.keras.models.Model(inputs=vgg.input, outputs=vgg.get_layer('block4_conv3').output)
+        true_features = loss_model(y_true)
+        pred_features = loss_model(y_pred)
+        mse_loss = MeanSquaredError()(true_features, pred_features)
+        return mse_loss
 
     def __create_readable_generator_mask(self, mask):
         readable_mask = self.generator_colors[mask]

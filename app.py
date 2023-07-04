@@ -47,7 +47,7 @@ if 'mc_image' not in st.session_state:
 # sidebar
 st.sidebar.title('Options')
 opt_noise = st.sidebar.checkbox('Optimize noise', value=True)
-opt_steps = st.sidebar.number_input('Optimization steps', value=100, min_value=0, max_value=1_000, step=100, format='%d', disabled=not opt_noise)
+opt_steps = st.sidebar.number_input('Optimization steps', value=100, min_value=0, max_value=1_000, step=50, format='%d', disabled=not opt_noise)
 opt_steps = opt_steps if opt_noise else 0
 use_seed = st.sidebar.checkbox('Use seed', value=False)
 seed = st.sidebar.number_input('Seed', value=0, min_value=0, step=1, format='%d', disabled=not use_seed)
